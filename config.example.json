@@ -1,0 +1,23 @@
+{
+  "country": "KR",
+  "max_ads_per_page": 30,
+  "max_scroll_attempts": 20,
+  "between_page_delay_min": 30,
+  "between_page_delay_max": 60,
+  "use_my_chrome_profile": true,
+  "chrome_profile_path": "~/Library/Application Support/Google/Chrome",
+  "chrome_profile_name": "Default",
+  "headless": false,
+  "notion": {
+    "database_url": "https://www.notion.so/YOUR_DATABASE_ID",
+    "data_source_id": "YOUR_DATA_SOURCE_ID",
+    "parent_page_url": "https://www.notion.so/YOUR_PARENT_PAGE_ID"
+  },
+  "competitors": [
+    {
+      "page_id": "1947160905536967",
+      "page_name": "예시 — 본인 경쟁사로 교체",
+      "notes": "광고 라이브러리에서 view_all_page_id 파라미터 값 복사"
+    }
+  ]
+}

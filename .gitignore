@@ -1,0 +1,15 @@
+# 비밀/대용량/캐시는 올리지 않기
+config.json
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 로그·임시 파일
+data/logs/
+data/ads.db-journal
+data/debug_screenshot.png
+
+# 참고: data/ads.db, data/media/, data/samples/ 는 '연습용 샘플'이라 일부러 올립니다.
+#       (다운받자마자 대시보드가 바로 뜨도록)
