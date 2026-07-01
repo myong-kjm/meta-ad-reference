@@ -251,10 +251,10 @@ def confirm_delete_competitor(page_id: str, page_name: str) -> None:
             _remove_competitor_from_config(page_id)
             st.success(f"삭제 완료 — 광고 {deleted}개 제거됨")
             if st.button("닫기", key="close_del_btn"):
-                st.rerun()
+                st.rerun(scope="app")
     with col2:
         if st.button("취소", width="stretch", key="cancel_del_btn"):
-            st.rerun()
+            st.rerun(scope="app")
 
 
 @st.dialog("신규 광고 수집 중")
@@ -293,7 +293,7 @@ def run_collect_dialog(cmd: list[str]) -> None:
         st.error(f"수집 종료 (코드 {rc}) — 로그를 확인하세요. 봇 차단이면 24시간 후 재시도 권장.")
 
     if st.button("닫고 새로고침", type="primary", width="stretch"):
-        st.rerun()
+        st.rerun(scope="app")
 
 
 def as_list(value) -> list:
@@ -621,7 +621,7 @@ def render_gallery(ads: list[dict], namespace: str = "main") -> None:
                             favorites.discard(ad_id)
                         st.session_state.favorites = favorites
                         # 찜한 소재 탭도 같이 갱신되도록 항상 전체 rerun
-                        st.rerun()
+                        st.rerun(scope="app")
                 with detail_col:
                     if st.button(
                         f"{video_icon}{short_name}  ▸  상세",
