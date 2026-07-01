@@ -134,6 +134,57 @@ def _update_config_name(page_id: str, name: str) -> None:
         CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _extract_from_page_script(page: Page) -> list[dict]:
+    """페이지 script 태그의 __bbox 임베디드 JSON에서 광고 데이터 추출.
+
+    GraphQL API가 rate limit에 걸려도 SSR HTML에 동일 데이터가 임베딩됨.
+    JS로 script 태그를 스캔해 {"data":{"ad_library_main":...}} 블록을 추출한다.
+    """
+    try:
+        payload = page.evaluate("""
+            () => {
+                for (const script of document.querySelectorAll('script')) {
+                    const text = script.textContent;
+                    if (!text.includes('"ad_archive_id"')) continue;
+
+                    // "data":{ 패턴으로 data 오브젝트 시작 위치 탐색
+                    // Facebook SSR 구조: __bbox > result > "data":{...}
+                    const adIdx = text.lastIndexOf('"ad_archive_id"');
+                    if (adIdx === -1) continue;
+                    const kwPos = text.lastIndexOf('"data":{', adIdx);
+                    if (kwPos === -1) continue;
+                    const dataStart = kwPos + 7; // '{'의 위치
+
+                    // 괄호 카운터로 JSON 블록 끝 찾기
+                    let depth = 0, inStr = false, esc = false, end = -1;
+                    const limit = Math.min(text.length, dataStart + 5000000);
+                    for (let i = dataStart; i < limit; i++) {
+                        const ch = text[i];
+                        if (esc) { esc = false; continue; }
+                        if (inStr) {
+                            if (ch === '\\\\') esc = true;
+                            else if (ch === '"') inStr = false;
+                            continue;
+                        }
+                        if (ch === '"') { inStr = true; continue; }
+                        if (ch === '{') depth++;
+                        else if (ch === '}') { if (--depth === 0) { end = i + 1; break; } }
+                    }
+
+                    if (end > dataStart) {
+                        try { return JSON.parse(text.slice(dataStart, end)); } catch(e) {}
+                    }
+                }
+                return null;
+            }
+        """)
+        if payload and isinstance(payload, dict):
+            return [payload]
+    except Exception as e:
+        print(f"    ⚠️  HTML 폴백 추출 오류: {e}")
+    return []
+
+
 def check_for_block(page: Page) -> None:
     """페이지 본문에 차단 메시지가 있는지 검사."""
     try:
@@ -212,13 +263,15 @@ def scrape_page(page: Page, page_id: str, page_name: str,
         page.wait_for_timeout(1500)
         waited += 1.5
     else:
-        print(f"    ⚠️  18초간 광고 응답 없음 (캡처된 GraphQL 응답: {len(collected_payloads)}건)")
-        if collected_payloads:
-            print("       → 응답은 잡혔으나 광고 추출 실패 (응답 구조 변경 가능성)")
+        print(f"    ⚠️  18초간 GraphQL 응답 없음 — HTML 임베디드 데이터로 폴백 시도")
+        html_payloads = _extract_from_page_script(page)
+        if html_payloads:
+            print(f"    ✓ HTML에서 광고 데이터 추출 성공 ({len(html_payloads)}개 블록)")
+            collected_payloads.extend(html_payloads)
         else:
-            print("       → 응답 자체가 없음 (봇 차단 또는 URL/엔드포인트 변경 의심)")
+            print("       → HTML에서도 데이터 없음 (봇 차단 또는 로그인 필요)")
 
-    print(f"    → GraphQL 응답 {len(collected_payloads)}건 캡처, 스크롤 시작")
+    print(f"    → 데이터 {len(collected_payloads)}건, 스크롤 시작")
     # 스크롤로 광고 더 로드
     for i in range(max_scrolls):
         human_like.smooth_scroll(page, target_pixels=1200)
