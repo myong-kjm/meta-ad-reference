@@ -360,13 +360,7 @@ def process_page(page: Page, competitor: dict, config: dict, mode: str) -> tuple
     for card in cards:
         if not card.get("ad_id"):
             continue
-        # 미디어 다운로드
-        try:
-            paths = download_media(card.get("media_urls", []), page_id, card["ad_id"])
-            card["media_paths"] = paths
-        except Exception as e:
-            print(f"    ⚠️  미디어 일괄 실패 (ad {card['ad_id']}): {e}")
-            card["media_paths"] = []
+        card["media_paths"] = []
 
         was_new, _ = db.upsert_ad(card)
         saved_cards.append(card)
