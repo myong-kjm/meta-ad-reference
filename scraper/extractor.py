@@ -149,6 +149,22 @@ def _node_to_ad(node: dict) -> dict:
                     entry["preview"] = preview
                 media_urls.append(entry)
 
+    # DPA / 카드형 광고: snapshot.cards 에 미디어가 들어있는 경우 처리
+    for card in (snapshot.get("cards") or []):
+        if not isinstance(card, dict):
+            continue
+        vid_url = card.get("video_hd_url") or card.get("video_sd_url") or ""
+        if vid_url:
+            entry = {"type": "video", "url": vid_url}
+            preview = card.get("video_preview_image_url") or ""
+            if preview:
+                entry["preview"] = preview
+            media_urls.append(entry)
+        else:
+            img_url = card.get("original_image_url") or card.get("resized_image_url") or ""
+            if img_url:
+                media_urls.append({"type": "image", "url": img_url})
+
     has_video = bool(videos) or (snapshot.get("display_format") or "").upper() == "VIDEO"
 
     return {
