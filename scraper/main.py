@@ -272,11 +272,30 @@ def scrape_page(page: Page, page_id: str, page_name: str,
             print("       → HTML에서도 데이터 없음 (봇 차단 또는 로그인 필요)")
 
     print(f"    → 데이터 {len(collected_payloads)}건, 스크롤 시작")
+    seen_payload_ids: set[str] = set()  # HTML 재추출 중복 방지
+    for p in collected_payloads:
+        for c in extract_ads_from_graphql(p):
+            if c.get("ad_id"):
+                seen_payload_ids.add(c["ad_id"])
+
     # 스크롤로 광고 더 로드
     for i in range(max_scrolls):
         human_like.smooth_scroll(page, target_pixels=1200)
         human_like.between_actions_pause()
         human_like.occasional_scroll_back(page)
+
+        # 5스크롤마다 HTML 재추출 시도 (GraphQL 레이트 리밋 시 보완)
+        if i % 5 == 4:
+            check_for_block(page)
+            extra = _extract_from_page_script(page)
+            for ep in extra:
+                new_ids = {c.get("ad_id") for c in extract_ads_from_graphql(ep) if c.get("ad_id")}
+                novel = new_ids - seen_payload_ids
+                if novel:
+                    print(f"    + HTML 재추출 {len(novel)}개 신규")
+                    collected_payloads.extend(extra)
+                    seen_payload_ids |= novel
+                break
 
         # 충분히 모았으면 중단
         cards: list[dict] = []
@@ -286,9 +305,6 @@ def scrape_page(page: Page, page_id: str, page_name: str,
         if len(unique_ids) >= max_ads:
             print(f"    ✓ {len(unique_ids)}개 모음 (목표 {max_ads}개 달성)")
             break
-
-        if i % 5 == 4:
-            check_for_block(page)
 
     # 최종 추출
     all_cards: list[dict] = []
