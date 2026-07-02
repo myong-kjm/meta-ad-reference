@@ -318,6 +318,7 @@ def run_collect_dialog(cmd: list[str]) -> None:
         st.error(f"수집 종료 (코드 {rc}) — 로그를 확인하세요. 봇 차단이면 24시간 후 재시도 권장.")
 
     if st.button("닫고 새로고침", type="primary", width="stretch"):
+        st.session_state._collect_cmd = None
         st.rerun(scope="app")
 
 
@@ -665,6 +666,8 @@ competitor_options = {
 
 if "favorites" not in st.session_state:
     st.session_state.favorites = db.get_all_favorite_ids()
+if "_collect_cmd" not in st.session_state:
+    st.session_state._collect_cmd = None
 
 with st.sidebar:
     st.markdown(
@@ -716,7 +719,8 @@ with st.sidebar:
                 cmd = [sys.executable, str(ROOT / "scraper" / "main.py"), "--url", url_val]
                 if new_name.strip():
                     cmd += ["--name", new_name.strip()]
-                run_collect_dialog(cmd)
+                st.session_state._collect_cmd = cmd
+                st.rerun()
 
     # ── ⚡ 지금 수집 (스케줄러를 기다리지 않고 현재 기준으로 즉시 일괄 수집) ──
     st.markdown("---")
@@ -730,7 +734,8 @@ with st.sidebar:
         cmd = [sys.executable, str(ROOT / "scraper" / "main.py")]
         if collect_scope == "선택 경쟁사만" and selected_page_id:
             cmd += ["--page-id", str(selected_page_id)]
-        run_collect_dialog(cmd)
+        st.session_state._collect_cmd = cmd
+        st.rerun()
     st.caption("⚠️ 봇 차단 방지를 위해 너무 자주 누르지 마세요. 휴식·차단 감지 로직은 그대로 동작합니다.")
 
     raw_ads = load_ads_for_page(selected_page_id)
@@ -774,6 +779,10 @@ with st.sidebar:
         st.markdown("**최근 수집**")
         for run in last_runs[:6]:
             st.caption(f"{run.get('page_id')}: {str(run.get('last_run', ''))[:16]}")
+
+# session state로 dialog 열기 — 버튼 클릭과 분리해야 닫기가 정상 동작
+if st.session_state._collect_cmd is not None:
+    run_collect_dialog(st.session_state._collect_cmd)
 
 filtered_ads = apply_filters(
     raw_ads,
