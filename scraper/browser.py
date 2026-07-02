@@ -48,9 +48,9 @@ def launch_context(playwright: Playwright, config: dict) -> BrowserContext:
         "timezone_id": "Asia/Seoul",
         "viewport": {"width": 1440, "height": 900},
         "user_agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/132.0.0.0 Safari/537.36"
+            "Chrome/149.0.0.0 Safari/537.36"
         ),
     }
 
@@ -73,6 +73,13 @@ def launch_context(playwright: Playwright, config: dict) -> BrowserContext:
                 print(f"📋 본인 Chrome 프로필을 임시 위치로 복사 중... ({src_profile.name})")
                 # 첫 실행만 복사. 두 번째부터는 기존 복사본 재사용 (캐시/쿠키 유지)
                 _safe_copy_profile(src_profile, tmp_profile)
+            else:
+                # 이전 크래시로 남은 Singleton 잠금 파일 제거 (없으면 무시)
+                for lock_file in tmp_profile.glob("Singleton*"):
+                    try:
+                        lock_file.unlink()
+                    except OSError:
+                        pass
             context = playwright.chromium.launch_persistent_context(
                 user_data_dir=str(tmp_profile),
                 channel="chrome",  # 실제 Chrome 사용 (Chromium 아님)
