@@ -240,6 +240,31 @@ def _remove_competitor_from_config(page_id: str) -> None:
         pass
 
 
+@st.dialog("경쟁사 이름 변경")
+def rename_competitor_dialog(page_id: str, current_name: str) -> None:
+    new_name = st.text_input("새 이름", value=current_name, key="rename_input")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("저장", type="primary", width="stretch", key="rename_save_btn"):
+            name = new_name.strip()
+            if name:
+                db.set_competitor_name(page_id, name)
+                # config.json 도 동기화
+                if CONFIG_PATH.exists():
+                    try:
+                        cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+                        for c in cfg.get("competitors", []):
+                            if str(c.get("page_id")) == str(page_id):
+                                c["page_name"] = name
+                        CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+                    except Exception:
+                        pass
+                st.rerun(scope="app")
+    with col2:
+        if st.button("취소", width="stretch", key="rename_cancel_btn"):
+            st.rerun(scope="app")
+
+
 @st.dialog("경쟁사 삭제")
 def confirm_delete_competitor(page_id: str, page_name: str) -> None:
     st.warning(f"**{page_name}** 의 모든 수집 광고를 함께 삭제합니다.")
@@ -652,10 +677,18 @@ with st.sidebar:
 
     with st.expander("🗂️ 경쟁사 관리"):
         for c in competitors:
-            col_name, col_btn = st.columns([3, 1])
+            col_name, col_edit, col_del = st.columns([3, 1, 1])
             with col_name:
                 st.caption(c["page_name"] or c["page_id"])
-            with col_btn:
+            with col_edit:
+                if st.button(
+                    "✏️",
+                    key=f"edit_comp_{c['page_id']}",
+                    help="이름 변경",
+                    width="stretch",
+                ):
+                    rename_competitor_dialog(str(c["page_id"]), c["page_name"] or str(c["page_id"]))
+            with col_del:
                 if st.button(
                     "🗑️",
                     key=f"del_comp_{c['page_id']}",
