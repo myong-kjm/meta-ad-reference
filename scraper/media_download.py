@@ -48,7 +48,12 @@ def _short_hash(s: str, n: int = 10) -> str:
 
 
 def download_media(media_items: list[dict], page_id: str, ad_id: str) -> list[str]:
-    """미디어 URL 목록 → 로컬 상대 경로 목록 (DB에 저장할 형태)."""
+    """미디어 URL 목록 → 로컬 상대 경로 목록 (DB에 저장할 형태).
+
+    메타 CDN URL은 매일 재수집할 때마다 토큰이 바뀌지만 실제 소재 내용은 그대로이므로,
+    URL 해시가 아니라 (media_type, idx) 슬롯 기준으로 이미 받은 파일이 있으면 재다운로드하지
+    않는다. (그렇지 않으면 같은 광고를 매일 재수집할 때마다 중복 파일이 쌓임)
+    """
     target_dir = MEDIA_ROOT / str(page_id) / str(ad_id)
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -59,11 +64,12 @@ def download_media(media_items: list[dict], page_id: str, ad_id: str) -> list[st
         if not url:
             continue
 
-        ext = _ext_for(url, media_type)
-        filename = f"{media_type}_{idx:02d}_{_short_hash(url)}{ext}"
-        target = target_dir / filename
-
-        if not target.exists():
+        existing = next(target_dir.glob(f"{media_type}_{idx:02d}_*"), None)
+        if existing:
+            rel_paths.append(existing.relative_to(MEDIA_ROOT.parent).as_posix())
+        else:
+            ext = _ext_for(url, media_type)
+            target = target_dir / f"{media_type}_{idx:02d}_{_short_hash(url)}{ext}"
             try:
                 resp = requests.get(url, headers=HEADERS, timeout=30, stream=True)
                 resp.raise_for_status()
@@ -75,22 +81,23 @@ def download_media(media_items: list[dict], page_id: str, ad_id: str) -> list[st
             except Exception as e:
                 print(f"    ⚠️  미디어 다운로드 실패 ({url[:60]}...): {e}")
                 continue
-
-        rel_paths.append(target.relative_to(MEDIA_ROOT.parent).as_posix())
+            rel_paths.append(target.relative_to(MEDIA_ROOT.parent).as_posix())
 
         # 영상이면 미리보기 이미지도 같이 받기
         preview_url = item.get("preview")
         if preview_url and media_type == "video":
-            preview_name = f"preview_{idx:02d}_{_short_hash(preview_url)}.jpg"
-            preview_target = target_dir / preview_name
-            if not preview_target.exists():
+            existing_preview = next(target_dir.glob(f"preview_{idx:02d}_*"), None)
+            if existing_preview:
+                rel_paths.append(existing_preview.relative_to(MEDIA_ROOT.parent).as_posix())
+            else:
+                preview_target = target_dir / f"preview_{idx:02d}_{_short_hash(preview_url)}.jpg"
                 try:
                     resp = requests.get(preview_url, headers=HEADERS, timeout=20)
                     resp.raise_for_status()
                     preview_target.write_bytes(resp.content)
                 except Exception:
                     pass
-            if preview_target.exists():
-                rel_paths.append(preview_target.relative_to(MEDIA_ROOT.parent).as_posix())
+                if preview_target.exists():
+                    rel_paths.append(preview_target.relative_to(MEDIA_ROOT.parent).as_posix())
 
     return rel_paths
