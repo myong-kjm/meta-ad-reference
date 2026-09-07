@@ -203,6 +203,7 @@ st.markdown(
 
 def media_abspath(rel_path: str) -> Path:
     """DB에 저장된 상대 경로를 절대 경로로 바꾼다."""
+    rel_path = rel_path.replace("\\", "/")
     if rel_path.startswith("data/"):
         return DATA_ROOT / rel_path[len("data/"):]
     return DATA_ROOT / rel_path

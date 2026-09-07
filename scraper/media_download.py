@@ -76,7 +76,7 @@ def download_media(media_items: list[dict], page_id: str, ad_id: str) -> list[st
                 print(f"    ⚠️  미디어 다운로드 실패 ({url[:60]}...): {e}")
                 continue
 
-        rel_paths.append(str(target.relative_to(MEDIA_ROOT.parent)))
+        rel_paths.append(target.relative_to(MEDIA_ROOT.parent).as_posix())
 
         # 영상이면 미리보기 이미지도 같이 받기
         preview_url = item.get("preview")
@@ -91,6 +91,6 @@ def download_media(media_items: list[dict], page_id: str, ad_id: str) -> list[st
                 except Exception:
                     pass
             if preview_target.exists():
-                rel_paths.append(str(preview_target.relative_to(MEDIA_ROOT.parent)))
+                rel_paths.append(preview_target.relative_to(MEDIA_ROOT.parent).as_posix())
 
     return rel_paths
